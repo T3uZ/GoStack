@@ -1,59 +1,61 @@
-const express = require ('express')
-const { request } = require('http')
+import express, { request, response } from "express";
+import { v4 } from "uuid";
 
-const app = express()
+const app = express();
 
-app.use(express.json())
+app.use(express.json());
 
+const uuidv4 = v4();
 
-const projects = []
+const customers = [];
 
-app.get('/projects', (request, response) => {
+const key = "123456";
 
-  const {title, owner} = request.query
-  console.log(title)
-  console.log(owner)
+// Middleware
 
-  
+function verifyIfExistsAcconuntCPF(request, response, next) {
+  const { cpf } = request.headers;
 
+  const customer = customers.find((customer) => customer.cpf === cpf);
 
-  //retornando variaveis que vei no query
-  return response.json({title, owner})
-})
+  if (!customer) {
+    return response.status(400).json({ error: "Customer not found" });
+  }
 
+  return next();
+}
 
-app.post('/projects', (request, response) =>{
+//Criando conta
+app.post("/account", (request, response) => {
+  const { cpf, name } = request.body;
 
-  const {title, owner} = request.body
+  const customerAlreadyExists = customers.some(
+    (customers) => customers.cpf === cpf
+  );
 
-  console.log(title, "\n", owner)
+  if (customerAlreadyExists) {
+    return response.status(400).json({ error: "Customer Already Exists!" });
+  }
+  customers.push({
+    cpf,
+    name,
+    id: uuidv4,
+    statement: [],
+  });
 
-  return response.json([
-    'projeto 1',
-    'projeto 2',
-    'projeto 3',
-  ])
-})
+  return response
+    .status(201)
+    .send({ message: "Usuario Cadastrado", cpf, name });
+});
 
-app.put('/projects/:id', (request, response) =>{
-  
-  const params = request.params;
-  
-  console.log(params)
-  return response.json([
-    'projeto 4',
-    'projeto 2',
-    'projeto 3',
-  ])
-})
+//Buscar extrato da conta bancaria
 
+app.use(verifyIfExistsAcconuntCPF);
 
-app.delete('/projects/:id', (request, response) =>{
-  return response.json([
-    'projeto 2',
-    'projeto 3',
-  ])
-})
-app.listen (3000, () => {
-  console.log("🔮  Server started sucess")
-})
+app.get("/statement", (request, response) => {
+  return response.status(200).json(customer.statement);
+});
+
+app.listen(3000, () => {
+  console.log("🔮  Server started sucess");
+});
